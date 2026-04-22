@@ -1,0 +1,145 @@
+import React, { useState, useEffect } from 'react';
+
+// --- ヘルパー関数: 日曜日を除外した日付計算 ---
+const addWorkDays = (startDate, daysToAdd) => {
+  let date = new Date(startDate);
+  let addedDays = 0;
+  while (addedDays < daysToAdd) {
+    date.setDate(date.getDate() + 1);
+    if (date.getDay() !== 0) { // 0は日曜日
+      addedDays++;
+    }
+  }
+  return date;
+};
+
+// --- ヘルパー関数: 難易度の算出 ---
+const calculateDifficulty = (gara, hosu, maisu) => {
+  const score = Number(gara) + Number(hosu) + Number(maisu);
+  if (score <= 5) return { label: '低', color: 'bg-green-100 text-green-800' };
+  if (score <= 10) return { label: '中', color: 'bg-yellow-100 text-yellow-800' };
+  return { label: '高', color: 'bg-red-100 text-red-800' };
+};
+
+const ShimeApp = () => {
+  const [tab, setTab] = useState('進行');
+  const [records, setRecords] = useState([]);
+  
+  // フォーム用ステート
+  const [formData, setFormData] = useState({
+    gara_ban: '',
+    gara_type: '大島',
+    itobetsu: '絣緯',
+    shime_name: '',
+    itowatashi_date: new Date().toISOString().split('T')[0],
+    gara_nuki: 1, // 1〜5
+    hosu: 1,      // 1〜5
+    maisu: 1,     // 1〜5
+    notes: ''
+  });
+
+  // 保存処理
+  const handleSave = () => {
+    const diff = calculateDifficulty(formData.gara_nuki, formData.hosu, formData.maisu);
+    const newRecord = {
+      ...formData,
+      id: Date.now(),
+      difficulty: diff.label,
+      difficultyColor: diff.color,
+      // 本来はここで過去データから平均日数を算出するが、一旦「一律7日」でデモ計算
+      scheduled_date: addWorkDays(new Date(formData.itowatashi_date), 7).toLocaleDateString()
+    };
+    setRecords([newRecord, ...records]);
+    alert("保存しました");
+    setTab('履歴');
+  };
+
+  return (
+    <div className="max-w-md mx-auto bg-gray-50 min-h-screen pb-20">
+      {/* ヘッダー */}
+      <header className="bg-indigo-700 text-white p-4 text-center font-bold shadow-md">
+        大島紬 締め者管理システム
+      </header>
+
+      {/* タブナビゲーション */}
+      <nav className="flex bg-white border-b sticky top-0 z-10">
+        {['進行', '管理', '履歴', '工賃'].map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-3 text-sm ${tab === t ? 'border-b-4 border-indigo-600 font-bold' : 'text-gray-500'}`}
+          >
+            {t}
+          </button>
+        ))}
+      </nav>
+
+      {/* メインコンテンツ */}
+      <main className="p-4">
+        {tab === '進行' && (
+          <div>
+            <h2 className="font-bold mb-4">進行中の案件 (最大4件)</h2>
+            {records.filter(r => !r.completion_date).slice(0, 4).map(r => (
+              <div key={r.id} className="bg-white p-4 rounded-lg shadow mb-3 border-l-4 border-indigo-500">
+                <div className="flex justify-between items-start">
+                  <span className="text-lg font-bold">{r.shime_name}</span>
+                  <span className={`px-2 py-1 rounded text-xs ${r.difficultyColor}`}>難易度:{r.difficulty}</span>
+                </div>
+                <p className="text-sm text-gray-600 mt-1">柄名: {r.gara_ban}</p>
+                <p className="text-sm text-gray-600">種類: {r.itobetsu}</p>
+                <div className="mt-2 text-xs text-indigo-600 font-semibold">
+                  完了予定: {r.scheduled_date} (日除外計算)
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === '管理' && (
+          <div className="bg-white p-4 rounded-lg shadow">
+            <h2 className="font-bold mb-4 text-gray-700 text-center">新規データ入力</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-500">締め者名</label>
+                <input type="text" className="w-full border p-2 rounded" value={formData.shime_name} onChange={e => setFormData({...formData, shime_name: e.target.value})} />
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500">柄の種類</label>
+                  <select className="w-full border p-2 rounded" value={formData.gara_type} onChange={e => setFormData({...formData, gara_type: e.target.value})}>
+                    <option>大島</option><option>一元</option><option>地紋</option><option>総絣</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500">糸別</label>
+                  <select className="w-full border p-2 rounded" value={formData.itobetsu} onChange={e => setFormData({...formData, itobetsu: e.target.value})}>
+                    <option>絣緯</option><option>地緯</option><option>絣経</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-500 text-center">柄抜き(1-5)</label>
+                  <input type="number" min="1" max="5" className="w-full border p-2 rounded" value={formData.gara_nuki} onChange={e => setFormData({...formData, gara_nuki: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 text-center">ホス数(1-5)</label>
+                  <input type="number" min="1" max="5" className="w-full border p-2 rounded" value={formData.hosu} onChange={e => setFormData({...formData, hosu: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 text-center">枚数(1-5)</label>
+                  <input type="number" min="1" max="5" className="w-full border p-2 rounded" value={formData.maisu} onChange={e => setFormData({...formData, maisu: e.target.value})} />
+                </div>
+              </div>
+              <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold shadow-lg active:bg-indigo-800 transition">データを保存する</button>
+            </div>
+          </div>
+        )}
+
+        {/* 履歴・工賃タブはここにリスト表示ロジックを追加 */}
+      </main>
+    </div>
+  );
+};
+
+export default ShimeApp;
