@@ -10,7 +10,6 @@
         .tab-content.active { display: block; }
         .active-tab { border-bottom: 4px solid #4f46e5; color: #4f46e5; }
         .num-btn.selected { background-color: #4f46e5; color: white; border-color: #4f46e5; }
-        /* 編集モーダル用 */
         #edit-modal { display: none; }
         #edit-modal.active { display: flex; }
     </style>
@@ -74,9 +73,12 @@
 
             <button onclick="saveWork()" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-xl shadow-lg active:scale-95 transition-transform">保存</button>
 
-            <div id="char-msg-box" class="mt-4 bg-yellow-50 border border-yellow-200 p-3 rounded-xl hidden flex items-center gap-3">
-                <div class="text-xl">👵</div>
-                <p id="char-text" class="text-xs text-yellow-800 font-bold"></p>
+            <div id="char-msg-box" class="mt-4 bg-yellow-50 border border-yellow-200 p-4 rounded-xl hidden flex items-center gap-4">
+                <div class="text-3xl">👵</div>
+                <div>
+                    <p class="text-[10px] text-yellow-600 font-bold mb-1">おばあちゃんの言葉</p>
+                    <p id="char-text" class="text-sm text-yellow-900 font-bold leading-relaxed"></p>
+                </div>
             </div>
         </div>
         <div id="work-empty" class="text-center py-20 text-gray-400 font-bold">管理タブから柄を選択してください</div>
@@ -121,33 +123,44 @@
             </div>
         </div>
         
-        <h2 class="font-bold text-gray-700 mb-2 text-sm uppercase px-1">進行中のデータ</h2>
+        <h2 class="font-bold text-gray-700 mb-2 text-sm uppercase px-1">データ一覧</h2>
         <div id="m-list" class="space-y-3"></div>
     </main>
 
     <div id="edit-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6">
-            <h3 class="font-black text-gray-800 mb-4">基本情報の再編集</h3>
+        <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 overflow-y-auto max-h-[90vh]">
+            <h3 class="font-black text-gray-800 mb-4 flex justify-between">基本情報の修正 <button onclick="closeEditModal()" class="text-gray-400">✕</button></h3>
             <div class="space-y-4">
                 <div>
                     <label class="text-[10px] text-gray-400 font-bold">柄の名前</label>
-                    <input type="text" id="edit-name" class="w-full border-b-2 border-indigo-100 p-2 outline-none focus:border-indigo-500 font-bold">
+                    <input type="text" id="edit-name" class="w-full border-b p-2 outline-none focus:border-indigo-500 font-bold">
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-400 font-bold">開始日</label>
+                    <input type="text" id="edit-start-date" class="w-full border-b p-2 outline-none focus:border-indigo-500 font-bold">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] text-gray-400 font-bold">現在の枚数</label>
+                        <input type="number" id="edit-current-count" class="w-full border-b p-2 outline-none focus:border-indigo-500 font-bold text-indigo-600">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-400 font-bold">目標枚数</label>
+                        <input type="number" id="edit-target" class="w-full border-b p-2 outline-none focus:border-indigo-500 font-bold">
+                    </div>
                 </div>
                 <div>
                     <label class="text-[10px] text-gray-400 font-bold">ムシロの種類</label>
-                    <select id="edit-type" class="w-full border-b-2 border-indigo-100 p-2 bg-white outline-none focus:border-indigo-500">
+                    <select id="edit-type" class="w-full border-b p-2 bg-white font-bold">
                         <option value="絣経糸">絣経糸</option>
                         <option value="絣緯糸">絣緯糸</option>
                         <option value="地緯糸">地緯糸</option>
                     </select>
                 </div>
-                <div>
-                    <label class="text-[10px] text-gray-400 font-bold">目標枚数</label>
-                    <input type="number" id="edit-target" class="w-full border-b-2 border-indigo-100 p-2 outline-none focus:border-indigo-500 font-bold">
-                </div>
-                <div class="flex gap-2 pt-2">
-                    <button onclick="closeEditModal()" class="flex-1 bg-gray-100 text-gray-500 py-3 rounded-xl font-bold">キャンセル</button>
-                    <button onclick="updateProject()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">更新する</button>
+                <div class="flex flex-col gap-2 pt-2">
+                    <button onclick="updateProject()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg">変更を保存</button>
+                    <button onclick="deleteProject()" class="w-full bg-red-50 text-red-500 py-3 rounded-xl font-bold border border-red-100">このデータを削除する</button>
+                    <button onclick="closeEditModal()" class="w-full bg-gray-50 text-gray-400 py-2 rounded-xl text-xs">キャンセル</button>
                 </div>
             </div>
         </div>
@@ -215,18 +228,24 @@
 
         function renderManage() {
             const list = document.getElementById('m-list');
-            list.innerHTML = projects.filter(p => !p.endDate).map(p => `
+            list.innerHTML = projects.map(p => {
+                const current = p.records.reduce((s, r) => s + r.count, 0);
+                return `
                 <div class="flex gap-2 items-stretch">
-                    <div onclick="selectProject(${p.id})" class="flex-1 p-4 bg-white border-2 ${activeId == p.id ? 'border-indigo-600 shadow-inner' : 'border-gray-100'} rounded-xl transition-all active:scale-95">
-                        <p class="text-[10px] text-gray-400 font-bold uppercase">No.${p.no} / ${p.type}</p>
+                    <div onclick="selectProject(${p.id})" class="flex-1 p-4 bg-white border-2 ${activeId == p.id ? 'border-indigo-600' : 'border-gray-100'} rounded-xl">
+                        <div class="flex justify-between items-start">
+                            <p class="text-[10px] text-gray-400 font-bold">No.${p.no} ${p.endDate ? '✅完了' : '⏳進行中'}</p>
+                            <p class="text-[10px] text-indigo-500 font-bold">${p.startDate}開始</p>
+                        </div>
                         <p class="font-black text-gray-800 text-lg">${p.name}</p>
-                        <p class="text-[10px] text-indigo-500 font-bold">目標: ${p.target}枚</p>
+                        <div class="flex justify-between mt-1">
+                             <p class="text-[10px] text-gray-500">${p.type}</p>
+                             <p class="text-[10px] font-bold text-indigo-600">${current} / ${p.target}枚</p>
+                        </div>
                     </div>
-                    <button onclick="openEditModal(${p.id})" class="bg-gray-200 text-gray-600 px-4 rounded-xl font-bold text-xs hover:bg-indigo-100 hover:text-indigo-600 transition-colors">
-                        編集
-                    </button>
+                    <button onclick="openEditModal(${p.id})" class="bg-gray-100 text-gray-500 px-4 rounded-xl font-bold text-xs">修正</button>
                 </div>
-            `).reverse().join('');
+            `}).reverse().join('');
         }
 
         function selectProject(id) {
@@ -235,13 +254,16 @@
             switchTab('work');
         }
 
-        // --- 編集機能 ---
+        // --- 編集・削除 ---
         function openEditModal(id) {
             editingId = id;
             const p = projects.find(x => x.id == id);
+            const current = p.records.reduce((s, r) => s + r.count, 0);
             document.getElementById('edit-name').value = p.name;
             document.getElementById('edit-type').value = p.type;
             document.getElementById('edit-target').value = p.target;
+            document.getElementById('edit-start-date').value = p.startDate;
+            document.getElementById('edit-current-count').value = current;
             document.getElementById('edit-modal').classList.add('active');
         }
 
@@ -257,11 +279,25 @@
             p.name = document.getElementById('edit-name').value;
             p.type = document.getElementById('edit-type').value;
             p.target = parseInt(document.getElementById('edit-target').value);
+            p.startDate = document.getElementById('edit-start-date').value;
+
+            // 枚数の直接修正対応
+            const newTotal = parseInt(document.getElementById('edit-current-count').value);
+            p.records = [{ date: p.startDate, count: newTotal, hours: 0 }];
             
             saveData();
             closeEditModal();
             renderManage();
-            alert("情報を更新しました");
+            renderWork();
+        }
+
+        function deleteProject() {
+            if(!confirm("このデータを完全に削除してもよろしいですか？取り消しはできません。")) return;
+            projects = projects.filter(x => x.id != editingId);
+            if(activeId == editingId) activeId = null;
+            saveData();
+            closeEditModal();
+            renderManage();
         }
 
         // --- 作業 ---
@@ -314,25 +350,48 @@
             if(total >= p.target) p.endDate = new Date().toLocaleDateString();
             
             saveData();
-            showCharMessage();
+            showCharMessage(tempCount);
             tempCount = 0;
             document.querySelectorAll('.num-btn').forEach(b => b.classList.remove('selected'));
             renderWork();
         }
 
-        function showCharMessage() {
+        function showCharMessage(count) {
             const box = document.getElementById('char-msg-box');
+            const txt = document.getElementById('char-text');
+            
+            let messages = [];
+            if(count <= 3) {
+                messages = [
+                    "ぼちぼちでよかよ。一歩ずつ、柄が形になっていくのが楽しみだねぇ。",
+                    "丁寧な仕事だねぇ。無理せんと、明日があるがね。",
+                    "肩の力を抜いてね。長く続けることが、一番の近道だよ。"
+                ];
+            } else if(count <= 7) {
+                messages = [
+                    "いい調子！リズムに乗ってきたねぇ。きばってるね！",
+                    "おぉ、捗ってるねぇ。これなら完成も早そうだね。",
+                    "美しい柄になりそうだ。あんたの手は、魔法の手だねぇ。"
+                ];
+            } else {
+                messages = [
+                    "たまがった（驚いた）！今日は一段と精が出るねぇ！職人の鏡だよ。",
+                    "素晴らしい！これだけの枚数をこなすなんて、並大抵じゃないよ。",
+                    "あんたの頑張りを見てると、こっちまで元気が出るよ。ありがとうねぇ。"
+                ];
+            }
+            
             box.classList.remove('hidden');
-            document.getElementById('char-text').innerText = "お疲れ様！保存しました。";
-            setTimeout(() => box.classList.add('hidden'), 3000);
+            txt.innerText = messages[Math.floor(Math.random() * messages.length)];
+            setTimeout(() => box.classList.add('hidden'), 5000);
         }
 
-        // --- 履歴 ---
+        // --- 履歴・分析 ---
         function renderHistorySelector() {
             const list = document.getElementById('history-selector');
             list.innerHTML = projects.map(p => `
                 <button onclick="showHistoryDetail(${p.id})" class="w-full text-left p-3 bg-white border rounded-lg shadow-sm font-bold text-sm">
-                    No.${p.no} ${p.name} ${p.type} ${p.endDate ? '✅' : '⏳'}
+                    No.${p.no} ${p.name} ${p.endDate ? '✅' : '⏳'}
                 </button>
             `).join('');
         }
@@ -341,41 +400,29 @@
             const p = projects.find(x => x.id == id);
             const detail = document.getElementById('history-detail');
             detail.classList.remove('hidden');
-            
             const current = p.records.reduce((s, r) => s + r.count, 0);
             const totalHours = p.records.reduce((s, r) => s + r.hours, 0);
             const days = p.records.length;
-
-            document.getElementById('hist-title').innerText = `No.${p.no} ${p.name} (${p.type})`;
+            document.getElementById('hist-title').innerText = p.name;
             document.getElementById('hist-start').innerText = p.startDate;
             document.getElementById('hist-end').innerText = p.endDate || "製造中";
             document.getElementById('hist-avg-count').innerText = days > 0 ? (current / days).toFixed(1) + " 枚" : "-";
             document.getElementById('hist-total-days').innerText = days + " 日";
             document.getElementById('hist-avg-time').innerText = days > 0 ? (totalHours / days).toFixed(1) + " 時間" : "-";
-            document.getElementById('hist-speed').innerText = totalHours > 0 ? (current / totalHours).toFixed(2) + " 枚/時間" : "-";
+            document.getElementById('hist-speed').innerText = totalHours > 0 ? (current / totalHours).toFixed(2) + " 枚/h" : "-";
             window.scrollTo(0, document.body.scrollHeight);
         }
 
-        // --- 分析 ---
         function renderTypeAnalysis() {
             const types = ["絣経糸", "絣緯糸", "地緯糸"];
             const list = document.getElementById('type-analysis-list');
-            
             list.innerHTML = types.map(type => {
                 const finished = projects.filter(p => p.type.includes(type) && p.endDate);
-                const avgDays = finished.length > 0 
-                    ? (finished.reduce((s, p) => s + p.records.length, 0) / finished.length).toFixed(1) 
-                    : "-";
-                
-                return `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
-                        <h3 class="font-bold text-gray-800">${type}</h3>
-                        <div class="flex justify-between mt-2 items-end">
-                            <span class="text-xs text-gray-400 font-bold">完成までにかかった平均日数</span>
-                            <span class="text-xl font-black text-green-600">${avgDays} <small class="text-xs">日</small></span>
-                        </div>
-                    </div>
-                `;
+                const avgDays = finished.length > 0 ? (finished.reduce((s, p) => s + p.records.length, 0) / finished.length).toFixed(1) : "-";
+                return `<div class="bg-white p-4 rounded-xl border-l-4 border-green-500">
+                    <h3 class="font-bold text-gray-800">${type}</h3>
+                    <div class="flex justify-between mt-2"><span class="text-xs text-gray-400">平均完成日数</span><span class="text-xl font-black text-green-600">${avgDays}日</span></div>
+                </div>`;
             }).join('');
         }
 
@@ -391,19 +438,12 @@
             let count = 0;
             while(count < daysNeeded) {
                 date.setDate(date.getDate() + 1);
-                const day = date.getDay();
-                const d = date.getDate();
                 const ds = `${date.getFullYear()}/${date.getMonth()+1}/${date.getDate()}`;
-                const weekNum = Math.ceil(d / 7);
-                let isWork = true;
-                if(day === 0 || holidays2026.includes(ds)) isWork = false;
-                if(day === 6 && weekNum >= 2 && weekNum <= 4) isWork = false;
-                if(isWork) count++;
+                if(date.getDay() !== 0 && !holidays2026.includes(ds)) count++;
             }
             document.getElementById('work-eta').innerText = `完成予定: ${date.getMonth()+1}/${date.getDate()}`;
         }
 
-        // 初期表示
         if(activeId) switchTab('work'); else switchTab('manage');
     </script>
 </body>
